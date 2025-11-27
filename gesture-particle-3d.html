@@ -216,6 +216,10 @@
             z-index: 10;
             pointer-events: none;
         }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -339,6 +343,12 @@
             try {
                 // 显示加载动画
                 showLoading(true);
+                
+                // 超时保护：如果5秒还没初始化好，强制进入
+                const timeoutId = setTimeout(() => {
+                    console.warn('初始化超时，强制隐藏加载界面');
+                    showLoading(false);
+                }, 8000);
 
                 // 初始化Three.js场景
                 await initThreeJS();
@@ -347,10 +357,11 @@
                 await initCamera();
                 await initMediaPipe();
 
+                // 初始化成功，清除超时定时器
+                clearTimeout(timeoutId);
+
                 // 隐藏加载动画
-                setTimeout(() => {
-                    showLoading(false);
-                }, 1500);
+                showLoading(false);
 
             } catch (error) {
                 console.error('初始化失败:', error);
@@ -584,17 +595,24 @@
             });
 
             hands.onResults(onHandsResults);
+            
+            // 启动检测循环 (替代 Camera 工具类，避免冲突)
+            startDetectionLoop();
+        }
 
-            // 启动摄像头处理
-            const camera = new Camera(videoElement, {
-                onFrame: async () => {
+        function startDetectionLoop() {
+            const videoElement = document.getElementById('videoElement');
+            
+            async function detect() {
+                if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
                     await hands.send({ image: videoElement });
-                },
-                width: CONFIG.iOS.videoWidth,
-                height: CONFIG.iOS.videoHeight
-            });
-
-            camera.start();
+                }
+                // 使用 requestAnimationFrame 进行循环，但不强求每一帧都检测
+                // 由 onHandsResults 中的 skipFrames 进一步控制逻辑频率
+                requestAnimationFrame(detect);
+            }
+            
+            detect();
         }
 
         // ==================== 手势识别回调 ====================
