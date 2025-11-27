@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>3D手势粒子特效</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'San Francisco', 'Helvetica Neue', sans-serif;
+            overflow: hidden;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a0a2e 100%);
+            color: white;
+            touch-action: none;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #canvas3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 120px;
+            height: 160px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+            z-index: 10;
+            transform: scaleX(-1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 加载动画 */
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a0a2e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-particles {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .loader-particle {
+            width: 12px;
+            height: 12px;
+            background: linear-gradient(45deg, #4a90e2, #9b59b6);
+            border-radius: 50%;
+            position: absolute;
+            animation: particleFloat 2s infinite ease-in-out;
+        }
+
+        .loader-particle:nth-child(1) { top: 0; left: 34px; animation-delay: 0s; }
+        .loader-particle:nth-child(2) { top: 15px; left: 15px; animation-delay: 0.2s; }
+        .loader-particle:nth-child(3) { top: 34px; left: 0; animation-delay: 0.4s; }
+        .loader-particle:nth-child(4) { top: 53px; left: 15px; animation-delay: 0.6s; }
+        .loader-particle:nth-child(5) { top: 68px; left: 34px; animation-delay: 0.8s; }
+        .loader-particle:nth-child(6) { top: 53px; left: 53px; animation-delay: 1s; }
+        .loader-particle:nth-child(7) { top: 34px; left: 68px; animation-delay: 1.2s; }
+        .loader-particle:nth-child(8) { top: 15px; left: 53px; animation-delay: 1.4s; }
+
+        @keyframes particleFloat {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 1; box-shadow: 0 0 20px rgba(74, 144, 226, 0.8); }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* 启动按钮（iOS摄像头需要用户交互） */
+        #startButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 50px;
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #4a90e2, #9b59b6);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 101;
+            box-shadow: 0 8px 30px rgba(74, 144, 226, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        #startButton:active {
+            transform: translate(-50%, -50%) scale(0.95);
+            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.6);
+        }
+
+        #startButton.hidden {
+            display: none;
+        }
+
+        /* 权限提示 */
+        #permissionGuide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 320px;
+            z-index: 102;
+            border: 2px solid rgba(74, 144, 226, 0.5);
+        }
+
+        #permissionGuide.hidden {
+            display: none;
+        }
+
+        .permission-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .permission-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .permission-desc {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .permission-btn {
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #4a90e2, #9b59b6);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+        }
+
+        /* 操作说明（可隐藏） */
+        #gestureGuide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            transition: opacity 0.3s ease;
+            max-width: 90%;
+            overflow-x: auto;
+        }
+
+        #gestureGuide.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .gesture-items {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .gesture-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 60px;
+        }
+
+        .gesture-icon {
+            font-size: 28px;
+        }
+
+        .gesture-text {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: nowrap;
+        }
+
+        .toggle-guide {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(74, 144, 226, 0.8);
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 11;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 错误提示 */
+        #errorMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(220, 53, 69, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 320px;
+            text-align: center;
+            z-index: 103;
+            display: none;
+        }
+
+        #errorMessage.show {
+            display: block;
+        }
+
+        .error-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .error-desc {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .error-btn {
+            padding: 12px 30px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            cursor: pointer;
+        }
+
+        /* FPS监控（调试用） */
+        #fpsCounter {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            z-index: 10;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- 3D画布 -->
+        <canvas id="canvas3d"></canvas>
+
+        <!-- 摄像头视频流 -->
+        <video id="videoElement" autoplay playsinline></video>
+
+        <!-- 加载屏幕 -->
+        <div id="loadingScreen">
+            <div class="loader-particles">
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+                <div class="loader-particle"></div>
+            </div>
+            <div class="loading-text">粒子加载中...</div>
+        </div>
+
+        <!-- 启动按钮（iOS需要用户交互启动摄像头） -->
+        <button id="startButton">🎨 启动手势特效</button>
+
+        <!-- 权限引导 -->
+        <div id="permissionGuide" class="hidden">
+            <div class="permission-icon">📷</div>
+            <div class="permission-title">需要摄像头权限</div>
+            <div class="permission-desc">我们需要访问您的摄像头来识别手势，控制3D粒子特效。您的隐私将受到保护。</div>
+            <button class="permission-btn" onclick="requestCameraPermission()">授权并启动</button>
+        </div>
+
+        <!-- 错误提示 -->
+        <div id="errorMessage">
+            <div class="error-title">⚠️ 出错了</div>
+            <div class="error-desc" id="errorDesc"></div>
+            <button class="error-btn" onclick="location.reload()">刷新重试</button>
+        </div>
+
+        <!-- 手势操作说明 -->
+        <div id="gestureGuide">
+            <div class="gesture-items">
+                <div class="gesture-item">
+                    <div class="gesture-icon">1️⃣</div>
+                    <div class="gesture-text">数字形状</div>
+                </div>
+                <div class="gesture-item">
+                    <div class="gesture-icon">✊</div>
+                    <div class="gesture-text">握拳聚集</div>
+                </div>
+                <div class="gesture-item">
+                    <div class="gesture-icon">✋</div>
+                    <div class="gesture-text">张开爆炸</div>
+                </div>
+                <div class="gesture-item">
+                    <div class="gesture-icon">🤏</div>
+                    <div class="gesture-text">捏合缩放</div>
+                </div>
+                <div class="gesture-item">
+                    <div class="gesture-icon">☝️</div>
+                    <div class="gesture-text">指尖轨迹</div>
+                </div>
+                <div class="gesture-item">
+                    <div class="gesture-icon">👋</div>
+                    <div class="gesture-text">挥手变形</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 切换说明按钮 -->
+        <button class="toggle-guide" onclick="toggleGuide()">❓</button>
+
+        <!-- FPS计数器 -->
+        <div id="fpsCounter">FPS: 60</div>
+    </div>
+
+    <!-- CDN引入 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <script>
+        // ==================== 全局配置 ====================
+        const CONFIG = {
+            // 粒子系统配置（性能优化）
+            particles: {
+                maxCount: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 1200 : 2000,
+                minCount: 600,
+                defaultSize: 0.018,
+                glowIntensity: 1.8,
+                attractionForce: 0.08,
+                damping: 0.95,
+                trailLength: 10,
+                colorPalette: [
+                    new THREE.Color(0x4a90e2), // 蓝色
+                    new THREE.Color(0x9b59b6), // 紫色
+                    new THREE.Color(0xe74c3c), // 红色
+                    new THREE.Color(0x3498db), // 亮蓝
+                    new THREE.Color(0x2ecc71), // 绿色
+                ]
+            },
+            // 手势识别阈值（提高响应速度）
+            gesture: {
+                fistThreshold: 0.15,        // 握拳判定阈值
+                openHandThreshold: 0.25,    // 张开手掌阈值
+                pinchThreshold: 0.05,       // 捏合阈值
+                swipeSpeedThreshold: 0.3,   // 挥手速度阈值
+                movementSmoothness: 0.4,    // 移动平滑度（提高响应速度）
+                skipFrames: 2               // 手势检测跳帧（每3帧处理一次）
+            },
+            // iOS适配（降低分辨率提升性能）
+            iOS: {
+                videoWidth: 320,
+                videoHeight: 240,
+                facingMode: 'user'
+            }
+        };
+
+        // ==================== 全局变量 ====================
+        let scene, camera, renderer, particleSystem;
+        let hands, cameraStream;
+        let currentGesture = null;
+        let lastHandPosition = { x: 0, y: 0, z: 0 };
+        let handVelocity = { x: 0, y: 0 };
+        let particleMode = 'sphere'; // sphere, flat, star, spiral
+        let isGripping = false;
+        let isPinching = false;
+        let lastPinchDistance = 0;
+        let trailParticles = [];
+        let swipeHistory = [];
+        let particleCount = CONFIG.particles.maxCount;
+        let guideVisible = true;
+
+        // FPS监控
+        let fps = 60;
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let gestureFrameCount = 0; // 手势检测帧计数器
+
+        // ==================== 初始化入口 ====================
+        document.getElementById('startButton').addEventListener('click', async () => {
+            document.getElementById('startButton').classList.add('hidden');
+            await initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // 显示加载动画
+                showLoading(true);
+
+                // 初始化Three.js场景
+                await initThreeJS();
+
+                // 请求摄像头权限并初始化MediaPipe
+                await initCamera();
+                await initMediaPipe();
+
+                // 隐藏加载动画
+                setTimeout(() => {
+                    showLoading(false);
+                }, 1500);
+
+            } catch (error) {
+                console.error('初始化失败:', error);
+                showError('初始化失败', error.message);
+            }
+        }
+
+        // ==================== Three.js 场景初始化 ====================
+        async function initThreeJS() {
+            const container = document.getElementById('canvas3d');
+
+            // 场景
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0a0a0a, 0.002);
+
+            // 相机
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.z = 2;
+
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({
+                canvas: container,
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // iOS优化：降低像素比
+
+            // 创建粒子系统
+            createParticleSystem();
+
+            // 添加背景星光
+            createBackgroundStars();
+
+            // 添加环境光
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            // 点光源（跟随粒子群）
+            const pointLight = new THREE.PointLight(0x4a90e2, 2, 10);
+            pointLight.position.set(0, 0, 1);
+            scene.add(pointLight);
+
+            // 窗口自适应
+            window.addEventListener('resize', onWindowResize);
+
+            // 启动渲染循环
+            animate();
+        }
+
+        // 创建粒子系统
+        function createParticleSystem() {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            const velocities = new Float32Array(particleCount * 3);
+
+            // 初始化粒子位置（球体分布）
+            for (let i = 0; i < particleCount; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                const radius = 0.5 + Math.random() * 0.3;
+
+                positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = radius * Math.cos(phi);
+
+                // 初始颜色（蓝色系）
+                const color = CONFIG.particles.colorPalette[0];
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+
+                // 粒子大小（带随机性）
+                sizes[i] = CONFIG.particles.defaultSize * (0.8 + Math.random() * 0.4);
+
+                // 初始速度
+                velocities[i * 3] = (Math.random() - 0.5) * 0.01;
+                velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.01;
+                velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            // 自定义shader材质（发光效果）
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    glowIntensity: { value: CONFIG.particles.glowIntensity }
+                },
+                vertexShader: `
+                    attribute float size;
+                    attribute vec3 color;
+                    varying vec3 vColor;
+                    void main() {
+                        vColor = color;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = size * 300.0 / -mvPosition.z;
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform float glowIntensity;
+                    varying vec3 vColor;
+                    void main() {
+                        float dist = length(gl_PointCoord - vec2(0.5));
+                        if (dist > 0.5) discard;
+                        float alpha = (1.0 - dist * 2.0) * 0.8;
+                        vec3 glow = vColor * glowIntensity;
+                        gl_FragColor = vec4(glow, alpha);
+                    }
+                `,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            particleSystem = new THREE.Points(geometry, material);
+            particleSystem.userData.velocities = velocities;
+            scene.add(particleSystem);
+        }
+
+        // 创建背景星光
+        function createBackgroundStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starPositions = new Float32Array(500 * 3);
+            
+            for (let i = 0; i < 500; i++) {
+                starPositions[i * 3] = (Math.random() - 0.5) * 20;
+                starPositions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                starPositions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.02,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+
+        // ==================== 摄像头初始化 ====================
+        async function initCamera() {
+            const videoElement = document.getElementById('videoElement');
+
+            try {
+                const constraints = {
+                    video: {
+                        width: { ideal: CONFIG.iOS.videoWidth },
+                        height: { ideal: CONFIG.iOS.videoHeight },
+                        facingMode: CONFIG.iOS.facingMode
+                    },
+                    audio: false
+                };
+
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = cameraStream;
+
+                // iOS需要用户交互后才能播放视频
+                await videoElement.play();
+
+            } catch (error) {
+                console.error('摄像头启动失败:', error);
+                if (error.name === 'NotAllowedError') {
+                    showPermissionGuide();
+                } else {
+                    throw new Error('无法访问摄像头，请确保设备有摄像头并授予权限');
+                }
+            }
+        }
+
+        async function requestCameraPermission() {
+            document.getElementById('permissionGuide').classList.add('hidden');
+            await initCamera();
+            await initMediaPipe();
+        }
+
+        // ==================== MediaPipe 手势识别 ====================
+        async function initMediaPipe() {
+            const videoElement = document.getElementById('videoElement');
+
+            hands = new Hands({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,  // 只检测一只手提升性能
+                modelComplexity: 0,  // 降低模型复杂度
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            hands.onResults(onHandsResults);
+
+            // 启动摄像头处理
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({ image: videoElement });
+                },
+                width: CONFIG.iOS.videoWidth,
+                height: CONFIG.iOS.videoHeight
+            });
+
+            camera.start();
+        }
+
+        // ==================== 手势识别回调 ====================
+        function onHandsResults(results) {
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                currentGesture = null;
+                return;
+            }
+
+            // 跳帧优化：每N帧处理一次手势识别
+            gestureFrameCount++;
+            if (gestureFrameCount % (CONFIG.gesture.skipFrames + 1) !== 0) {
+                return;
+            }
+
+            const landmarks = results.multiHandLandmarks[0]; // 使用第一只手
+            const handedness = results.multiHandedness[0].label; // Left or Right
+
+            // 识别手势类型
+            const gesture = recognizeGesture(landmarks);
+            currentGesture = gesture;
+
+            // 计算手掌中心位置（用于粒子跟随）
+            const handCenter = calculateHandCenter(landmarks);
+            
+            // 转换到3D空间坐标（归一化到 -1 到 1）
+            const handPos3D = {
+                x: (handCenter.x - 0.5) * 2,
+                y: -(handCenter.y - 0.5) * 2,
+                z: handCenter.z * 2
+            };
+
+            // 计算手部移动速度
+            handVelocity = {
+                x: (handPos3D.x - lastHandPosition.x) * 0.1,
+                y: (handPos3D.y - lastHandPosition.y) * 0.1
+            };
+
+            // 平滑移动
+            lastHandPosition.x += (handPos3D.x - lastHandPosition.x) * CONFIG.gesture.movementSmoothness;
+            lastHandPosition.y += (handPos3D.y - lastHandPosition.y) * CONFIG.gesture.movementSmoothness;
+            lastHandPosition.z += (handPos3D.z - lastHandPosition.z) * CONFIG.gesture.movementSmoothness;
+
+            // 根据手势更新粒子
+            updateParticlesByGesture(gesture, landmarks, lastHandPosition);
+        }
+
+        // 识别手势
+        function recognizeGesture(landmarks) {
+            // 计算手指伸展度
+            const fingerExtensions = calculateFingerExtensions(landmarks);
+            
+            // 数字手势检测（1-5）- 优先级最高
+            const numberGesture = detectNumberGesture(fingerExtensions);
+            if (numberGesture) {
+                return { type: 'number', data: { number: numberGesture } };
+            }
+            
+            // 握拳检测（所有手指都收起）
+            if (fingerExtensions.every(ext => ext < CONFIG.gesture.fistThreshold)) {
+                isGripping = true;
+                return { type: 'fist', data: null };
+            }
+
+            // 张开手掌检测
+            if (fingerExtensions.every(ext => ext > CONFIG.gesture.openHandThreshold)) {
+                if (isGripping) {
+                    isGripping = false;
+                    return { type: 'release', data: null };
+                }
+                return { type: 'open', data: null };
+            }
+
+            // 捏合检测（拇指+食指）
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const pinchDistance = Math.sqrt(
+                Math.pow(thumbTip.x - indexTip.x, 2) +
+                Math.pow(thumbTip.y - indexTip.y, 2)
+            );
+
+            if (pinchDistance < CONFIG.gesture.pinchThreshold) {
+                isPinching = true;
+                return { type: 'pinch', data: { distance: pinchDistance } };
+            } else if (isPinching && pinchDistance > CONFIG.gesture.pinchThreshold * 2) {
+                isPinching = false;
+            }
+
+            // 单指指向检测（仅食指伸出）
+            if (fingerExtensions[1] > 0.25 && 
+                fingerExtensions[2] < 0.15 && 
+                fingerExtensions[3] < 0.15 && 
+                fingerExtensions[4] < 0.15) {
+                return { type: 'point', data: { tip: landmarks[8] } };
+            }
+
+            // 挥手检测（基于速度）
+            const speed = Math.sqrt(handVelocity.x ** 2 + handVelocity.y ** 2);
+            swipeHistory.push(speed);
+            if (swipeHistory.length > 10) swipeHistory.shift();
+
+            const avgSpeed = swipeHistory.reduce((a, b) => a + b, 0) / swipeHistory.length;
+            if (avgSpeed > CONFIG.gesture.swipeSpeedThreshold) {
+                return { type: 'swipe', data: { speed: avgSpeed } };
+            }
+
+            return { type: 'idle', data: null };
+        }
+
+        // 检测数字手势（1-5）
+        function detectNumberGesture(fingerExtensions) {
+            // fingerExtensions: [拇指, 食指, 中指, 无名指, 小指]
+            const threshold = 0.20; // 伸展阈值
+            const extended = fingerExtensions.map(ext => ext > threshold);
+            
+            // 数字1：仅食指伸出
+            if (!extended[0] && extended[1] && !extended[2] && !extended[3] && !extended[4]) {
+                return 1;
+            }
+            
+            // 数字2：食指+中指伸出
+            if (!extended[0] && extended[1] && extended[2] && !extended[3] && !extended[4]) {
+                return 2;
+            }
+            
+            // 数字3：食指+中指+无名指伸出
+            if (!extended[0] && extended[1] && extended[2] && extended[3] && !extended[4]) {
+                return 3;
+            }
+            
+            // 数字4：除拇指外全部伸出
+            if (!extended[0] && extended[1] && extended[2] && extended[3] && extended[4]) {
+                return 4;
+            }
+            
+            // 数字5：全部手指伸出
+            if (extended[0] && extended[1] && extended[2] && extended[3] && extended[4]) {
+                return 5;
+            }
+            
+            return null;
+        }
+
+        // 计算手指伸展度
+        function calculateFingerExtensions(landmarks) {
+            const fingerTips = [4, 8, 12, 16, 20]; // 拇指, 食指, 中指, 无名指, 小指
+            const fingerBases = [2, 5, 9, 13, 17];
+            const extensions = [];
+
+            for (let i = 0; i < fingerTips.length; i++) {
+                const tip = landmarks[fingerTips[i]];
+                const base = landmarks[fingerBases[i]];
+                const distance = Math.sqrt(
+                    Math.pow(tip.x - base.x, 2) +
+                    Math.pow(tip.y - base.y, 2)
+                );
+                extensions.push(distance);
+            }
+
+            return extensions;
+        }
+
+        // 计算手掌中心
+        function calculateHandCenter(landmarks) {
+            let sumX = 0, sumY = 0, sumZ = 0;
+            landmarks.forEach(lm => {
+                sumX += lm.x;
+                sumY += lm.y;
+                sumZ += lm.z;
+            });
+            return {
+                x: sumX / landmarks.length,
+                y: sumY / landmarks.length,
+                z: sumZ / landmarks.length
+            };
+        }
+
+        // ==================== 粒子更新逻辑 ====================
+        function updateParticlesByGesture(gesture, landmarks, handPos) {
+            if (!particleSystem) return;
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            const colors = particleSystem.geometry.attributes.color.array;
+            const sizes = particleSystem.geometry.attributes.size.array;
+            const velocities = particleSystem.userData.velocities;
+
+            switch (gesture?.type) {
+                case 'fist':
+                    // 握拳：粒子聚集到拳头位置
+                    for (let i = 0; i < particleCount; i++) {
+                        const idx = i * 3;
+                        const dx = handPos.x - positions[idx];
+                        const dy = handPos.y - positions[idx + 1];
+                        const dz = handPos.z - positions[idx + 2];
+                        
+                        velocities[idx] += dx * CONFIG.particles.attractionForce * 2;
+                        velocities[idx + 1] += dy * CONFIG.particles.attractionForce * 2;
+                        velocities[idx + 2] += dz * CONFIG.particles.attractionForce * 2;
+
+                        // 增强亮度
+                        colors[idx] = Math.min(1, colors[idx] * 1.05);
+                        colors[idx + 1] = Math.min(1, colors[idx + 1] * 1.05);
+                        colors[idx + 2] = Math.min(1, colors[idx + 2] * 1.05);
+
+                        sizes[i] = Math.min(0.03, sizes[i] * 1.02);
+                    }
+                    break;
+
+                case 'release':
+                    // 张开释放：粒子爆炸散开
+                    for (let i = 0; i < particleCount; i++) {
+                        const idx = i * 3;
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = 0.05 + Math.random() * 0.1;
+                        
+                        velocities[idx] = Math.cos(angle) * speed;
+                        velocities[idx + 1] = Math.sin(angle) * speed;
+                        velocities[idx + 2] = (Math.random() - 0.5) * speed;
+
+                        // 彩虹色
+                        const rainbowColor = CONFIG.particles.colorPalette[i % CONFIG.particles.colorPalette.length];
+                        colors[idx] = rainbowColor.r;
+                        colors[idx + 1] = rainbowColor.g;
+                        colors[idx + 2] = rainbowColor.b;
+                    }
+                    break;
+
+                case 'pinch':
+                    // 捏合：缩放粒子群
+                    const scale = 1 - gesture.data.distance * 5;
+                    for (let i = 0; i < particleCount; i++) {
+                        const idx = i * 3;
+                        positions[idx] *= scale;
+                        positions[idx + 1] *= scale;
+                        positions[idx + 2] *= scale;
+
+                        // 压缩发光
+                        sizes[i] = CONFIG.particles.defaultSize * (1 + (1 - scale) * 2);
+                    }
+                    break;
+
+                case 'point':
+                    // 单指轨迹：生成跟随粒子流
+                    const tipPos = {
+                        x: (gesture.data.tip.x - 0.5) * 2,
+                        y: -(gesture.data.tip.y - 0.5) * 2,
+                        z: gesture.data.tip.z * 2
+                    };
+
+                    // 添加轨迹粒子
+                    if (trailParticles.length < CONFIG.particles.trailLength) {
+                        trailParticles.push({ ...tipPos, life: 1.0 });
+                    }
+
+                    // 核心粒子群缓慢靠拢
+                    for (let i = 0; i < particleCount; i++) {
+                        const idx = i * 3;
+                        const dx = tipPos.x - positions[idx];
+                        const dy = tipPos.y - positions[idx + 1];
+                        
+                        velocities[idx] += dx * CONFIG.particles.attractionForce * 0.5;
+                        velocities[idx + 1] += dy * CONFIG.particles.attractionForce * 0.5;
+
+                        // 速度影响颜色
+                        const speed = Math.sqrt(handVelocity.x ** 2 + handVelocity.y ** 2);
+                        colors[idx] = speed * 10;
+                        colors[idx + 1] = 0.5;
+                        colors[idx + 2] = 1 - speed * 5;
+                    }
+                    break;
+
+                case 'swipe':
+                    // 挥手：切换粒子形态
+                    switchParticleMode();
+                    break;
+
+                case 'number':
+                    // 数字手势：显示对应数字形状
+                    morphToNumber(gesture.data.number);
+                    break;
+            }
+
+            // 更新缓冲区
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+            particleSystem.geometry.attributes.color.needsUpdate = true;
+            particleSystem.geometry.attributes.size.needsUpdate = true;
+        }
+
+        // 变形为数字形状
+        let lastNumberTime = 0;
+        function morphToNumber(number) {
+            const now = Date.now();
+            if (now - lastNumberTime < 500) return; // 防止频繁切换
+            lastNumberTime = now;
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            const colors = particleSystem.geometry.attributes.color.array;
+            const numberPositions = generateNumberShape(number);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+                const targetIdx = i % numberPositions.length;
+                const target = numberPositions[targetIdx];
+                
+                // 平滑过渡到目标位置
+                positions[idx] += (target.x - positions[idx]) * 0.15;
+                positions[idx + 1] += (target.y - positions[idx + 1]) * 0.15;
+                positions[idx + 2] += (target.z - positions[idx + 2]) * 0.15;
+
+                // 数字颜色（渐变）
+                const colorIndex = Math.floor((number - 1) % CONFIG.particles.colorPalette.length);
+                const targetColor = CONFIG.particles.colorPalette[colorIndex];
+                colors[idx] = targetColor.r;
+                colors[idx + 1] = targetColor.g;
+                colors[idx + 2] = targetColor.b;
+            }
+        }
+
+        // 生成数字形状的粒子位置
+        function generateNumberShape(number) {
+            const positions = [];
+            const scale = 0.8;
+            const thickness = 0.08;
+            
+            switch(number) {
+                case 1:
+                    // 数字1：竖线
+                    for (let y = -1; y <= 1; y += 0.03) {
+                        positions.push({ x: 0, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 顶部斜线
+                    for (let i = 0; i < 20; i++) {
+                        const t = i / 20;
+                        positions.push({ x: -0.2 * t * scale, y: (1 - 0.3 * t) * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    break;
+                    
+                case 2:
+                    // 数字2：上弧+斜线+底线
+                    // 上弧
+                    for (let angle = Math.PI; angle <= Math.PI * 2; angle += 0.05) {
+                        const x = Math.cos(angle) * 0.4;
+                        const y = Math.sin(angle) * 0.4 + 0.6;
+                        positions.push({ x: x * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 斜线
+                    for (let i = 0; i < 40; i++) {
+                        const t = i / 40;
+                        positions.push({ x: (0.4 - 0.8 * t) * scale, y: (0.2 - 1.2 * t) * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 底线
+                    for (let x = -0.4; x <= 0.4; x += 0.03) {
+                        positions.push({ x: x * scale, y: -1 * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    break;
+                    
+                case 3:
+                    // 数字3：上弧+中弧+下弧
+                    // 上弧
+                    for (let angle = -Math.PI/2; angle <= Math.PI/2; angle += 0.05) {
+                        const x = Math.cos(angle) * 0.4;
+                        const y = Math.sin(angle) * 0.4 + 0.5;
+                        positions.push({ x: x * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 中线
+                    for (let x = -0.3; x <= 0.4; x += 0.03) {
+                        positions.push({ x: x * scale, y: 0, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 下弧
+                    for (let angle = -Math.PI/2; angle <= Math.PI/2; angle += 0.05) {
+                        const x = Math.cos(angle) * 0.4;
+                        const y = Math.sin(angle) * 0.4 - 0.5;
+                        positions.push({ x: x * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    break;
+                    
+                case 4:
+                    // 数字4：竖线+斜线+横线
+                    // 左斜线
+                    for (let i = 0; i < 40; i++) {
+                        const t = i / 40;
+                        positions.push({ x: (-0.4 + 0.4 * t) * scale, y: (1 - 1.5 * t) * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 横线
+                    for (let x = -0.4; x <= 0.5; x += 0.03) {
+                        positions.push({ x: x * scale, y: -0.2 * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 右竖线
+                    for (let y = -1; y <= 1; y += 0.03) {
+                        positions.push({ x: 0.3 * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    break;
+                    
+                case 5:
+                    // 数字5：横线+竖线+弧线+底线
+                    // 顶部横线
+                    for (let x = -0.4; x <= 0.4; x += 0.03) {
+                        positions.push({ x: x * scale, y: 1 * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 左竖线
+                    for (let y = 0.2; y <= 1; y += 0.03) {
+                        positions.push({ x: -0.4 * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 中间横线
+                    for (let x = -0.4; x <= 0.3; x += 0.03) {
+                        positions.push({ x: x * scale, y: 0.2 * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    // 下弧
+                    for (let angle = -Math.PI/2; angle <= Math.PI/2; angle += 0.05) {
+                        const x = Math.cos(angle) * 0.4;
+                        const y = Math.sin(angle) * 0.5 - 0.3;
+                        positions.push({ x: x * scale, y: y * scale, z: (Math.random() - 0.5) * thickness });
+                    }
+                    break;
+            }
+            
+            return positions;
+        }
+
+        // 切换粒子形态
+        let lastSwipeTime = 0;
+        function switchParticleMode() {
+            const now = Date.now();
+            if (now - lastSwipeTime < 1000) return; // 防止频繁切换
+            lastSwipeTime = now;
+
+            const modes = ['sphere', 'flat', 'star', 'spiral'];
+            const currentIndex = modes.indexOf(particleMode);
+            particleMode = modes[(currentIndex + 1) % modes.length];
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+                let x, y, z;
+
+                switch (particleMode) {
+                    case 'sphere':
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(Math.random() * 2 - 1);
+                        const radius = 0.5;
+                        x = radius * Math.sin(phi) * Math.cos(theta);
+                        y = radius * Math.sin(phi) * Math.sin(theta);
+                        z = radius * Math.cos(phi);
+                        break;
+
+                    case 'flat':
+                        x = (Math.random() - 0.5) * 2;
+                        y = (Math.random() - 0.5) * 2;
+                        z = (Math.random() - 0.5) * 0.1;
+                        break;
+
+                    case 'star':
+                        const angle = (i / particleCount) * Math.PI * 2 * 5;
+                        const r = 0.3 + (i % 2) * 0.3;
+                        x = r * Math.cos(angle);
+                        y = r * Math.sin(angle);
+                        z = (Math.random() - 0.5) * 0.2;
+                        break;
+
+                    case 'spiral':
+                        const t = i / particleCount * Math.PI * 4;
+                        x = t * 0.2 * Math.cos(t);
+                        y = t * 0.2 * Math.sin(t);
+                        z = (i / particleCount - 0.5) * 2;
+                        break;
+                }
+
+                // 平滑过渡
+                positions[idx] += (x - positions[idx]) * 0.05;
+                positions[idx + 1] += (y - positions[idx + 1]) * 0.05;
+                positions[idx + 2] += (z - positions[idx + 2]) * 0.05;
+            }
+        }
+
+        // ==================== 渲染循环 ====================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 更新粒子物理
+            updateParticlePhysics();
+
+            // 渲染场景
+            renderer.render(scene, camera);
+
+            // FPS监控
+            updateFPS();
+        }
+
+        function updateParticlePhysics() {
+            if (!particleSystem) return;
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            const velocities = particleSystem.userData.velocities;
+
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+
+                // 应用速度
+                positions[idx] += velocities[idx];
+                positions[idx + 1] += velocities[idx + 1];
+                positions[idx + 2] += velocities[idx + 2];
+
+                // 阻尼
+                velocities[idx] *= CONFIG.particles.damping;
+                velocities[idx + 1] *= CONFIG.particles.damping;
+                velocities[idx + 2] *= CONFIG.particles.damping;
+
+                // 重力（轻微下落）
+                velocities[idx + 1] -= 0.0002;
+
+                // 量子波动（减少随机抖动以提升性能）
+                if (i % 3 === 0) { // 只对部分粒子添加抖动
+                    positions[idx] += (Math.random() - 0.5) * 0.0008;
+                    positions[idx + 1] += (Math.random() - 0.5) * 0.0008;
+                }
+
+                // 边界检测（粒子不会飞出视野）
+                if (Math.abs(positions[idx]) > 3) velocities[idx] *= -0.5;
+                if (Math.abs(positions[idx + 1]) > 3) velocities[idx + 1] *= -0.5;
+                if (Math.abs(positions[idx + 2]) > 3) velocities[idx + 2] *= -0.5;
+            }
+
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+
+            // 轨迹粒子衰减
+            trailParticles = trailParticles.filter(p => {
+                p.life -= 0.05;
+                return p.life > 0;
+            });
+        }
+
+        // ==================== UI 交互 ====================
+        function toggleGuide() {
+            guideVisible = !guideVisible;
+            const guide = document.getElementById('gestureGuide');
+            guide.classList.toggle('hidden', !guideVisible);
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loadingScreen');
+            if (show) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function showPermissionGuide() {
+            document.getElementById('permissionGuide').classList.remove('hidden');
+        }
+
+        function showError(title, message) {
+            const errorDiv = document.getElementById('errorMessage');
+            const errorDesc = document.getElementById('errorDesc');
+            errorDesc.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateFPS() {
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastFrameTime + 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastFrameTime));
+                frameCount = 0;
+                lastFrameTime = currentTime;
+                // document.getElementById('fpsCounter').textContent = `FPS: ${fps}`;
+            }
+        }
+
+        // ==================== 错误处理 ====================
+        window.addEventListener('error', (event) => {
+            console.error('全局错误:', event.error);
+            if (event.message.includes('CDN') || event.message.includes('network')) {
+                showError('资源加载失败', '网络异常，请检查网络连接后刷新重试');
+            }
+        });
+
+        // 性能监控（iOS设备自动降低粒子数）
+        setInterval(() => {
+            if (fps < 25 && particleCount > CONFIG.particles.minCount) {
+                particleCount = Math.max(CONFIG.particles.minCount, particleCount - 150);
+                console.log('⚡ 性能优化：降低粒子数至', particleCount);
+            } else if (fps > 50 && particleCount < CONFIG.particles.maxCount) {
+                particleCount = Math.min(CONFIG.particles.maxCount, particleCount + 100);
+                console.log('✨ 性能提升：增加粒子数至', particleCount);
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
