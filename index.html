@@ -302,8 +302,8 @@
                 openHandThreshold: 0.25,
                 pinchThreshold: 0.05,
                 swipeSpeedThreshold: 0.3,
-                movementSmoothness: 0.3,    
-                skipFrames: 3               // 默认跳帧，后续动态调整
+                movementSmoothness: 0.5,    // 提高跟手度 (0.3 -> 0.5)
+                skipFrames: 1               // 提高识别频率 (3 -> 1)
             },
             iOS: {
                 videoWidth: 320,  
@@ -926,7 +926,7 @@
                 const target = numberPositions[targetIdx];
                 
                 // 弹性Lerp：先快后慢
-                const lerpFactor = 0.08;
+                const lerpFactor = 0.15; // 加快数字变形速度 (0.08 -> 0.15)
                 
                 // 目标位置加入微小的正弦浮动
                 const floatX = Math.sin(time + i * 0.1) * 0.02;
@@ -1227,9 +1227,9 @@
             
             // 动态调整跳帧策略
             if (fps < 45) {
-                CONFIG.gesture.skipFrames = 5; // 掉帧时，优先保渲染
-            } else if (fps >= 58) {
-                CONFIG.gesture.skipFrames = 3; // 流畅时，提高识别率
+                CONFIG.gesture.skipFrames = 3; // 掉帧时也不要太卡
+            } else if (fps >= 55) {
+                CONFIG.gesture.skipFrames = 1; // 流畅时全力识别
             }
             
             // 更新状态指示灯
