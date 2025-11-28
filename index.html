@@ -7,7 +7,7 @@
     <style>
         body {
             margin: 0;
-            height: 100vh;
+            min-height: 100vh;
             background: linear-gradient(135deg, #4a148c 0%, #1a237e 100%);
             font-family: 'Arial', sans-serif;
             display: flex;
@@ -19,13 +19,16 @@
 
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 50px;
+            margin: 50px 0;
             text-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
 
         .menu {
             display: flex;
             gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
         }
 
         .menu-item {
@@ -68,6 +71,7 @@
             opacity: 0.8;
             text-align: center;
             padding: 0 20px;
+            line-height: 1.4;
         }
 
         .tag {
@@ -81,6 +85,11 @@
             font-size: 0.8rem;
             font-weight: bold;
         }
+        
+        .tag.new {
+            background: #FF4081;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -89,14 +98,21 @@
 
     <div class="menu">
         <a href="tarot.html" class="menu-item">
-            <div class="tag">方案二</div>
-            <div class="icon">🎴</div>
-            <div class="title">命运塔罗</div>
-            <div class="desc">3D 翻牌特效，神秘感十足，必中惊喜。</div>
+            <div class="tag new">推荐</div>
+            <div class="icon">🔮</div>
+            <div class="title">命运炼金术</div>
+            <div class="desc">神秘的塔罗翻牌仪式，三次递进，合成最终大奖。</div>
+        </a>
+
+        <a href="graffiti.html" class="menu-item">
+            <div class="tag new">新品</div>
+            <div class="icon">🎨</div>
+            <div class="title">甜蜜涂鸦</div>
+            <div class="desc">亲手涂抹蜂蜜墙，随着色彩填满，惊喜破壁而出。</div>
         </a>
 
         <a href="blast.html" class="menu-item">
-            <div class="tag">方案三</div>
+            <div class="tag">经典</div>
             <div class="icon">💥</div>
             <div class="title">果酱爆破</div>
             <div class="desc">解压点击破碎效果，寻找隐藏的甜蜜。</div>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>FRUDIA 甜蜜焕新</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            background: #f0f0f0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 禁止 iOS 上的默认回弹和选择 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #e0e0e0; /* 原始灰暗墙面 */
+        }
+
+        /* 家庭场景背景 (灰暗版) */
+        .room-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(#ccc 1px, transparent 1px),
+                linear-gradient(90deg, #ccc 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 简单的家具剪影 */
+        .furniture {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            background-repeat: no-repeat;
+            background-position: bottom center;
+            background-size: contain;
+            opacity: 0.3;
+            z-index: 2;
+            pointer-events: none;
+            /* 使用 SVG data URI 绘制简单家具：沙发和台灯 */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300'%3E%3Cpath d='M100,250 L200,250 L200,150 L100,150 Z' fill='%23999'/%3E%3Cpath d='M220,250 L580,250 L580,180 Q580,150 550,150 L250,150 Q220,150 220,180 Z' fill='%23999'/%3E%3Crect x='600' y='200' width='100' height='50' fill='%23999'/%3E%3Crect x='640' y='100' width='20' height='100' fill='%23666'/%3E%3Cpath d='M600,100 L700,100 L650,40 Z' fill='%23666'/%3E%3C/svg%3E");
+        }
+
+        /* 提示文字 */
+        #instruction {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            color: #666;
+            pointer-events: none;
+            z-index: 10;
+            transition: opacity 0.5s;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+            font-weight: bold;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5;
+            touch-action: none; /* 关键：禁止浏览器处理触摸手势 */
+        }
+
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 150px;
+            height: 8px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+            z-index: 20;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #FFC107;
+            transition: width 0.1s;
+        }
+
+        /* 最终大奖 */
+        #prize-reveal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, #FFF8E1 0%, #FFC107 100%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease-in-out;
+            z-index: 30;
+            transform: scale(1.1); /* 稍微放大防止边缘漏光 */
+        }
+
+        #prize-reveal.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        .prize-jar {
+            width: 280px;
+            height: 280px;
+            animation: bounceIn 1s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.2));
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale3d(.3, .3, .3); }
+            20% { transform: scale3d(1.1, 1.1, 1.1); }
+            40% { transform: scale3d(.9, .9, .9); }
+            60% { opacity: 1; transform: scale3d(1.03, 1.03, 1.03); }
+            80% { transform: scale3d(.97, .97, .97); }
+            100% { opacity: 1; transform: scale3d(1, 1, 1); }
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #666;
+            text-decoration: none;
+            z-index: 100;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* 刷子光标模拟 (仅桌面端可见) */
+        @media (hover: hover) {
+            body {
+                cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M10,28 L10,16 L4,16 L4,12 L28,12 L28,16 L22,16 L22,28 Z" fill="%23FFC107" stroke="%23E65100" stroke-width="2"/></svg>') 16 32, auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-btn">← 返回</a>
+    
+    <div id="container">
+        <div class="room-bg"></div>
+        <div class="furniture"></div>
+        
+        <div id="instruction">
+            <div style="font-size: 2rem; margin-bottom: 10px;">🎨</div>
+            给新家刷上蜂蜜色<br>
+            <span style="font-size:0.9rem; opacity:0.8">涂满墙壁解锁惊喜</span>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progress"></div>
+        </div>
+
+        <canvas id="paint-canvas"></canvas>
+    </div>
+
+    <div id="prize-reveal">
+        <h1 style="color: #E65100; font-size: 2.5rem; margin-bottom: 20px; text-shadow: 0 2px 0 rgba(255,255,255,0.5);">焕新成功！</h1>
+        
+        <!-- SVG 大奖素材 -->
+        <svg class="prize-jar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="honeyBody2" cx="40%" cy="40%" r="60%" fx="30%" fy="30%">
+                    <stop offset="0%" style="stop-color:#FFECB3; stop-opacity:0.95" />
+                    <stop offset="50%" style="stop-color:#FFC107; stop-opacity:0.9" />
+                    <stop offset="100%" style="stop-color:#FF6F00; stop-opacity:1" />
+                </radialGradient>
+                <linearGradient id="lidGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#9C27B0;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#4A148C;stop-opacity:1" />
+                </linearGradient>
+                <filter id="shadowFilter2">
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/>
+                </filter>
+            </defs>
+            <path d="M40,90 Q35,150 100,160 Q165,150 160,90 L155,80 L45,80 Z" fill="url(#honeyBody2)" filter="url(#shadowFilter2)" />
+            <path d="M55,95 Q50,140 90,145" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" />
+            <circle cx="140" cy="110" r="3" fill="rgba(255,255,255,0.6)" />
+            <path d="M35,85 C35,60 60,40 100,40 C140,40 165,60 165,85 L165,90 Q150,100 135,90 Q120,80 100,95 Q80,110 65,90 Q50,80 35,90 Z" fill="url(#lidGradient2)" filter="url(#shadowFilter2)" />
+            <ellipse cx="70" cy="60" rx="20" ry="8" fill="rgba(255,255,255,0.2)" transform="rotate(-20 70 60)" />
+            <text x="100" y="130" font-family="Arial" font-weight="bold" font-size="18" text-anchor="middle" fill="#4A148C" letter-spacing="1">FRUDIA</text>
+        </svg>
+        
+        <p style="color:#E65100; margin-top:20px; font-weight:bold;">获得 FRUDIA 蜜罐奖励</p>
+        <button onclick="location.reload()" style="margin-top:30px; padding:15px 40px; background:#673AB7; color:white; border:none; border-radius:25px; font-size:1.2rem; cursor:pointer; box-shadow: 0 5px 15px rgba(103, 58, 183, 0.4); font-weight:bold;">领取惊喜</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paint-canvas');
+        const ctx = canvas.getContext('2d');
+        const progressEl = document.getElementById('progress');
+        const instructionEl = document.getElementById('instruction');
+        const prizeReveal = document.getElementById('prize-reveal');
+
+        let isDrawing = false;
+        let isWon = false;
+        let paintedDistance = 0;
+        let lastX = 0, lastY = 0;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // 保持之前画的内容? 稍微有点复杂，简化处理：重置
+            // 或者这里可以做离屏Canvas保存，暂不处理
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 50; // 刷子粗细
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = '#FFC107';
+            ctx.strokeStyle = 'rgba(255, 193, 7, 0.9)'; 
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function getPos(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function startDraw(e) {
+            if(isWon) return;
+            isDrawing = true;
+            instructionEl.style.opacity = 0;
+            
+            const pos = getPos(e);
+            lastX = pos.x;
+            lastY = pos.y;
+            
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            draw(e);
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!isDrawing || isWon) return;
+            
+            // 阻止默认事件以防止滚动 (iOS关键)
+            if(e.cancelable) e.preventDefault();
+            
+            const pos = getPos(e);
+            
+            // 绘制线条
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            
+            // 模拟刷漆飞溅
+            if (Math.random() > 0.9) {
+                drawSplat(pos.x, pos.y);
+            }
+            
+            // 更新线条起始点，防止 moveTo 不更新
+            // 实际上 stroke() 不会清除路径，所以持续 lineTo 是可以的
+            // 但为了更好的控制，我们每帧画一段
+            // ctx.beginPath();
+            // ctx.moveTo(pos.x, pos.y);
+            // ^ 这种方式会让线条断开，不平滑。保持连续路径更好。
+
+            // 计算距离用于进度条
+            const dist = Math.hypot(pos.x - lastX, pos.y - lastY);
+            // 忽略过大的跳跃（可能是多指触控误判）
+            if(dist < 200) {
+                paintedDistance += dist;
+            }
+            lastX = pos.x;
+            lastY = pos.y;
+            
+            updateProgress();
+        }
+
+        function drawSplat(x, y) {
+            const count = Math.random() * 2 + 1;
+            for(let i=0; i<count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 20 + 10;
+                const sx = x + Math.cos(angle) * radius;
+                const sy = y + Math.sin(angle) * radius;
+                
+                const oldFill = ctx.fillStyle;
+                ctx.fillStyle = 'rgba(255, 193, 7, 0.7)';
+                ctx.beginPath();
+                ctx.arc(sx, sy, Math.random() * 4, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = oldFill;
+            }
+        }
+
+        function updateProgress() {
+            // 目标距离：根据屏幕大小动态调整
+            // 假设刷满全屏大概需要覆盖 60% 的面积
+            // 粗略估算：Width * Height / BrushWidth * 系数
+            // 简单点：(Width + Height) * 6
+            
+            const targetDistance = (window.innerWidth + window.innerHeight) * 5; 
+            let percent = (paintedDistance / targetDistance) * 100;
+            
+            if (percent > 100) percent = 100;
+            progressEl.style.width = percent + '%';
+            
+            if (percent >= 100) {
+                winGame();
+            }
+        }
+
+        function winGame() {
+            if(isWon) return;
+            isWon = true;
+            
+            // 1. 填满背景
+            const fillDiv = document.createElement('div');
+            fillDiv.style.position = 'absolute';
+            fillDiv.style.top = '0';
+            fillDiv.style.left = '0';
+            fillDiv.style.width = '100%';
+            fillDiv.style.height = '100%';
+            fillDiv.style.background = '#FFC107';
+            fillDiv.style.zIndex = '15';
+            fillDiv.style.opacity = '0';
+            fillDiv.style.transition = 'opacity 0.5s';
+            document.getElementById('container').appendChild(fillDiv);
+            
+            // 强制重绘
+            setTimeout(() => { fillDiv.style.opacity = '1'; }, 50);
+            
+            // 2. 显示奖品
+            setTimeout(() => {
+                prizeReveal.classList.add('show');
+            }, 600);
+        }
+
+        // 事件监听：同时绑定 Mouse 和 Touch
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseout', stopDraw);
+
+        // iOS Safari passive: false 是必须的，否则无法 preventDefault
+        canvas.addEventListener('touchstart', startDraw, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDraw);
+        canvas.addEventListener('touchcancel', stopDraw);
+
+    </script>
+</body>
+</html>
