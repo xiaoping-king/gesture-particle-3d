@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRUDIA 果酱爆破 - 必中抽奖</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #2a0e38;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* 最终奖品展示层 (在 Canvas 后面) */
+        #prize-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+            background: radial-gradient(circle, #ffffff 0%, #ffd700 100%);
+        }
+
+        #prize-layer.show {
+            opacity: 1;
+        }
+
+        /* 游戏层 (Canvas) */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            cursor: crosshair;
+            transition: opacity 1s ease-out;
+        }
+
+        canvas.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            color: #673AB7;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0px #ffd700;
+        }
+        
+        .instruction {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 10;
+            font-size: 1.5rem;
+            pointer-events: none;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .prize-svg {
+            width: 300px;
+            height: 300px;
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            z-index: 100;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-btn">← 返回首页</a>
+    <div class="instruction" id="instruction">点击屏幕打破果酱！</div>
+
+    <div id="prize-layer">
+        <h1>FRUDIA 蜜罐</h1>
+        <!-- 使用 SVG 绘制大奖图 -->
+        <svg class="prize-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="glow-large">
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <linearGradient id="honeyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ffe082;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ffb300;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <!-- 光芒背景 -->
+            <circle cx="50" cy="50" r="45" fill="rgba(255,255,255,0.5)" filter="url(#glow-large)" />
+            
+            <!-- 瓶身 -->
+            <path d="M20,45 Q20,85 50,95 Q80,85 80,45 L80,40 L20,40 Z" fill="url(#honeyGradient)" />
+            <!-- 瓶盖 -->
+            <path d="M15,40 Q50,30 85,40 L85,25 Q50,15 15,25 Z" fill="#673AB7" />
+            <ellipse cx="50" cy="25" rx="35" ry="10" fill="#9575CD" />
+            <!-- 标签 -->
+            <text x="50" y="70" font-size="12" text-anchor="middle" fill="#5e35b1" font-weight="bold" font-family="Arial">FRUDIA</text>
+        </svg>
+        <h2 style="color:#5e35b1; margin-top:10px;">恭喜获得隐藏大奖！</h2>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const prizeLayer = document.getElementById('prize-layer');
+        const instruction = document.getElementById('instruction');
+
+        let width, height;
+        let balls = [];
+        let particles = [];
+        let clickCount = 0;
+        let gameOver = false;
+
+        // 配置
+        const COLORS = ['#673AB7', '#9575CD', '#FFC107', '#FFD54F', '#FFF']; // 紫色、黄色系
+        const GRAVITY = 0.5;
+        const FRICTION = 0.98;
+
+        class Ball {
+            constructor(x, y, r) {
+                this.x = x;
+                this.y = y;
+                this.r = r;
+                this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                // 简单的漂浮运动
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 边界反弹
+                if (this.x + this.r > width || this.x - this.r < 0) this.vx *= -1;
+                if (this.y + this.r > height || this.y - this.r < 0) this.vy *= -1;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 15;
+                this.vy = (Math.random() - 0.5) * 15;
+                this.life = 1.0;
+                this.size = Math.random() * 5 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += GRAVITY * 0.5;
+                this.life -= 0.02;
+                this.size *= 0.95;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            
+            // 填充屏幕
+            const area = width * height;
+            const count = Math.floor(area / 8000); // 密度控制
+            
+            for (let i = 0; i < count; i++) {
+                const r = Math.random() * 30 + 10;
+                const x = Math.random() * (width - 2 * r) + r;
+                const y = Math.random() * (height - 2 * r) + r;
+                balls.push(new Ball(x, y, r));
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        window.addEventListener('mousedown', (e) => {
+            if (gameOver) return;
+
+            const mx = e.clientX;
+            const my = e.clientY;
+            let hit = false;
+
+            // 检查点击
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const b = balls[i];
+                const dx = mx - b.x;
+                const dy = my - b.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < b.r + 20) { // 增加一点判定范围
+                    createExplosion(b.x, b.y, b.color);
+                    balls.splice(i, 1);
+                    hit = true;
+                    clickCount++;
+                }
+            }
+
+            // 即使没点中，也产生一点特效
+            if (!hit) {
+                createExplosion(mx, my, '#FFF');
+            }
+
+            // 检查胜利条件
+            if (clickCount >= 5) {
+                triggerWin();
+            }
+        });
+
+        function triggerWin() {
+            if (gameOver) return;
+            gameOver = true;
+            instruction.innerText = "炸裂吧！";
+
+            // 连锁反应：炸掉所有剩下的球
+            let delay = 0;
+            balls.forEach((b, i) => {
+                setTimeout(() => {
+                    createExplosion(b.x, b.y, b.color);
+                }, Math.random() * 500);
+            });
+            balls = [];
+
+            setTimeout(() => {
+                canvas.classList.add('fade-out');
+                prizeLayer.classList.add('show');
+                // 撒花
+                setInterval(() => {
+                    createExplosion(width/2, height/2, COLORS[Math.floor(Math.random()*COLORS.length)]);
+                }, 100);
+            }, 1000);
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            balls.forEach(b => {
+                b.update();
+                b.draw();
+            });
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        init();
+        animate();
+
+    </script>
+</body>
+</html>
