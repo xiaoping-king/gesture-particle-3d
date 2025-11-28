@@ -2,33 +2,40 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>FRUDIA 甜蜜焕新</title>
     <style>
-        body {
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+            --sar: env(safe-area-inset-right);
+        }
+
+        html, body {
             margin: 0;
-            height: 100vh;
-            width: 100vw;
-            background: #f0f0f0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            /* 禁止 iOS 上的默认回弹和选择 */
-            -webkit-touch-callout: none;
+            position: fixed; /* 锁定页面防止滚动 */
             -webkit-user-select: none;
             user-select: none;
-            touch-action: none;
+            -webkit-touch-callout: none;
+            background: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         #container {
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: #e0e0e0; /* 原始灰暗墙面 */
+            touch-action: none;
         }
 
         /* 家庭场景背景 (灰暗版) */
@@ -66,101 +73,74 @@
         /* 提示文字 */
         #instruction {
             position: absolute;
-            top: 20%;
+            top: 25%;
+            left: 0;
             width: 100%;
             text-align: center;
-            font-size: 1.5rem;
             color: #666;
             pointer-events: none;
             z-index: 10;
             transition: opacity 0.5s;
             text-shadow: 0 1px 0 rgba(255,255,255,0.8);
-            font-weight: bold;
+            padding: 0 20px;
+            box-sizing: border-box;
         }
+        
+        .inst-icon { font-size: 4rem; margin-bottom: 10px; display: block; animation: float 3s infinite ease-in-out; }
+        .inst-title { font-size: 1.8rem; font-weight: 800; display: block; margin-bottom: 5px; color: #444; }
+        .inst-sub { font-size: 1rem; opacity: 0.8; font-weight: normal; }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
         canvas {
             display: block;
+            width: 100%;
+            height: 100%;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 5;
-            touch-action: none; /* 关键：禁止浏览器处理触摸手势 */
         }
 
         /* 进度条 */
         .progress-container {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 150px;
-            height: 8px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 4px;
+            top: calc(20px + var(--sat));
+            right: calc(20px + var(--sar));
+            width: 160px;
+            height: 12px;
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
             z-index: 20;
             overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.5);
+            backdrop-filter: blur(5px);
         }
 
         .progress-bar {
             width: 0%;
             height: 100%;
-            background: #FFC107;
-            transition: width 0.1s;
-        }
-
-        /* 最终大奖 */
-        #prize-reveal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: radial-gradient(circle, #FFF8E1 0%, #FFC107 100%);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.8s ease-in-out;
-            z-index: 30;
-            transform: scale(1.1); /* 稍微放大防止边缘漏光 */
-        }
-
-        #prize-reveal.show {
-            opacity: 1;
-            pointer-events: auto;
-            transform: scale(1);
-        }
-
-        .prize-jar {
-            width: 280px;
-            height: 280px;
-            animation: bounceIn 1s cubic-bezier(0.215, 0.610, 0.355, 1.000);
-            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.2));
-        }
-
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale3d(.3, .3, .3); }
-            20% { transform: scale3d(1.1, 1.1, 1.1); }
-            40% { transform: scale3d(.9, .9, .9); }
-            60% { opacity: 1; transform: scale3d(1.03, 1.03, 1.03); }
-            80% { transform: scale3d(.97, .97, .97); }
-            100% { opacity: 1; transform: scale3d(1, 1, 1); }
+            background: linear-gradient(90deg, #FFC107, #FF9800);
+            transition: width 0.1s linear;
         }
 
         .back-btn {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #666;
+            top: calc(20px + var(--sat));
+            left: calc(20px + var(--sal));
+            color: #333;
             text-decoration: none;
             z-index: 100;
-            padding: 8px 15px;
-            background: rgba(255,255,255,0.8);
-            border-radius: 20px;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            -webkit-tap-highlight-color: transparent; /* 去除点击高亮 */
         }
+        
+        .back-btn:active { transform: scale(0.95); background: #fff; }
         
         /* 刷子光标模拟 (仅桌面端可见) */
         @media (hover: hover) {
@@ -178,9 +158,9 @@
         <div class="furniture"></div>
         
         <div id="instruction">
-            <div style="font-size: 2rem; margin-bottom: 10px;">🎨</div>
-            给新家刷上蜂蜜色<br>
-            <span style="font-size:0.9rem; opacity:0.8">涂满墙壁解锁惊喜</span>
+            <span class="inst-icon">🎨</span>
+            <span class="inst-title">给新家刷上蜂蜜色</span>
+            <span class="inst-sub">涂满墙壁解锁惊喜</span>
         </div>
         
         <div class="progress-container">
@@ -191,10 +171,11 @@
     </div>
 
     <div id="prize-reveal">
-        <h1 style="color: #E65100; font-size: 2.5rem; margin-bottom: 20px; text-shadow: 0 2px 0 rgba(255,255,255,0.5);">焕新成功！</h1>
+        <h1 style="color: #E65100; font-size: 2.5rem; margin-bottom: 20px; text-shadow: 0 2px 0 rgba(255,255,255,0.5); font-weight: 800;">焕新成功！</h1>
         
         <!-- SVG 大奖素材 -->
         <svg class="prize-jar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <!-- SVG Content Same as Before -->
             <defs>
                 <radialGradient id="honeyBody2" cx="40%" cy="40%" r="60%" fx="30%" fy="30%">
                     <stop offset="0%" style="stop-color:#FFECB3; stop-opacity:0.95" />
@@ -217,8 +198,8 @@
             <text x="100" y="130" font-family="Arial" font-weight="bold" font-size="18" text-anchor="middle" fill="#4A148C" letter-spacing="1">FRUDIA</text>
         </svg>
         
-        <p style="color:#E65100; margin-top:20px; font-weight:bold;">获得 FRUDIA 蜜罐奖励</p>
-        <button onclick="location.reload()" style="margin-top:30px; padding:15px 40px; background:#673AB7; color:white; border:none; border-radius:25px; font-size:1.2rem; cursor:pointer; box-shadow: 0 5px 15px rgba(103, 58, 183, 0.4); font-weight:bold;">领取惊喜</button>
+        <p style="color:#E65100; margin-top:30px; font-weight:bold; font-size: 1.2rem;">获得 FRUDIA 蜜罐奖励</p>
+        <button onclick="location.reload()" style="margin-top:30px; padding:18px 50px; background:#673AB7; color:white; border:none; border-radius:50px; font-size:1.2rem; cursor:pointer; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.4); font-weight:bold; transition: transform 0.1s;">领取惊喜</button>
     </div>
 
     <script>
@@ -232,25 +213,39 @@
         let isWon = false;
         let paintedDistance = 0;
         let lastX = 0, lastY = 0;
+        
+        // 防止 iOS 橡皮筋效果
+        document.body.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
 
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            // Retina 屏幕适配：使用 devicePixelRatio
+            const dpr = window.devicePixelRatio || 1;
+            const rect = document.getElementById('container').getBoundingClientRect();
             
-            // 保持之前画的内容? 稍微有点复杂，简化处理：重置
-            // 或者这里可以做离屏Canvas保存，暂不处理
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            // 缩放 Context 以匹配 CSS 尺寸
+            ctx.scale(dpr, dpr);
+            
+            // 重置画笔样式
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
-            ctx.lineWidth = 50; // 刷子粗细
-            ctx.shadowBlur = 5;
+            ctx.lineWidth = 60; // 视觉宽度
+            ctx.shadowBlur = 10;
             ctx.shadowColor = '#FFC107';
-            ctx.strokeStyle = 'rgba(255, 193, 7, 0.9)'; 
+            ctx.strokeStyle = 'rgba(255, 193, 7, 0.95)'; 
         }
+        
         window.addEventListener('resize', resize);
-        resize();
+        // 初始化调用
+        setTimeout(resize, 100); // 延迟确保容器尺寸正确
 
         function getPos(e) {
             if (e.touches && e.touches.length > 0) {
+                // 获取相对于 canvas 的坐标（虽然这里 canvas 是全屏的）
                 return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
             return { x: e.clientX, y: e.clientY };
@@ -267,7 +262,9 @@
             
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            draw(e);
+            // 立即画一个点，让点击也有反应
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
         }
 
         function stopDraw() {
@@ -278,63 +275,54 @@
         function draw(e) {
             if (!isDrawing || isWon) return;
             
-            // 阻止默认事件以防止滚动 (iOS关键)
+            // iOS 关键：防止默认滚动
             if(e.cancelable) e.preventDefault();
             
             const pos = getPos(e);
             
-            // 绘制线条
+            // 使用 quadraticCurveTo 使线条更平滑
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             
-            // 模拟刷漆飞溅
-            if (Math.random() > 0.9) {
+            // 更好的飞溅效果
+            if (Math.random() > 0.92) {
                 drawSplat(pos.x, pos.y);
             }
             
-            // 更新线条起始点，防止 moveTo 不更新
-            // 实际上 stroke() 不会清除路径，所以持续 lineTo 是可以的
-            // 但为了更好的控制，我们每帧画一段
-            // ctx.beginPath();
-            // ctx.moveTo(pos.x, pos.y);
-            // ^ 这种方式会让线条断开，不平滑。保持连续路径更好。
-
-            // 计算距离用于进度条
+            // 进度计算
             const dist = Math.hypot(pos.x - lastX, pos.y - lastY);
-            // 忽略过大的跳跃（可能是多指触控误判）
-            if(dist < 200) {
+            if(dist < 300) { // 忽略瞬间跳跃
                 paintedDistance += dist;
             }
             lastX = pos.x;
             lastY = pos.y;
             
-            updateProgress();
+            // 使用 requestAnimationFrame 更新进度条，减少 DOM 操作频率
+            requestAnimationFrame(updateProgress);
         }
 
         function drawSplat(x, y) {
-            const count = Math.random() * 2 + 1;
+            const count = Math.random() * 3 + 2;
             for(let i=0; i<count; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * 20 + 10;
+                const radius = Math.random() * 25 + 10;
                 const sx = x + Math.cos(angle) * radius;
                 const sy = y + Math.sin(angle) * radius;
+                const size = Math.random() * 6 + 2;
                 
                 const oldFill = ctx.fillStyle;
-                ctx.fillStyle = 'rgba(255, 193, 7, 0.7)';
+                ctx.fillStyle = 'rgba(255, 193, 7, 0.8)';
                 ctx.beginPath();
-                ctx.arc(sx, sy, Math.random() * 4, 0, Math.PI*2);
+                ctx.arc(sx, sy, size, 0, Math.PI*2);
                 ctx.fill();
                 ctx.fillStyle = oldFill;
             }
         }
 
         function updateProgress() {
-            // 目标距离：根据屏幕大小动态调整
-            // 假设刷满全屏大概需要覆盖 60% 的面积
-            // 粗略估算：Width * Height / BrushWidth * 系数
-            // 简单点：(Width + Height) * 6
-            
-            const targetDistance = (window.innerWidth + window.innerHeight) * 5; 
+            if (isWon) return;
+            // 目标距离
+            const targetDistance = (window.innerWidth + window.innerHeight) * 4.5; 
             let percent = (paintedDistance / targetDistance) * 100;
             
             if (percent > 100) percent = 100;
@@ -349,7 +337,7 @@
             if(isWon) return;
             isWon = true;
             
-            // 1. 填满背景
+            // 1. 填满背景 - 更加平滑的过渡
             const fillDiv = document.createElement('div');
             fillDiv.style.position = 'absolute';
             fillDiv.style.top = '0';
@@ -359,11 +347,13 @@
             fillDiv.style.background = '#FFC107';
             fillDiv.style.zIndex = '15';
             fillDiv.style.opacity = '0';
-            fillDiv.style.transition = 'opacity 0.5s';
+            fillDiv.style.transition = 'opacity 0.8s ease-out';
             document.getElementById('container').appendChild(fillDiv);
             
             // 强制重绘
-            setTimeout(() => { fillDiv.style.opacity = '1'; }, 50);
+            requestAnimationFrame(() => {
+                fillDiv.style.opacity = '1';
+            });
             
             // 2. 显示奖品
             setTimeout(() => {
@@ -371,17 +361,19 @@
             }, 600);
         }
 
-        // 事件监听：同时绑定 Mouse 和 Touch
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('mouseout', stopDraw);
+        // 事件监听
+        const canvasEl = document.getElementById('paint-canvas');
+        
+        canvasEl.addEventListener('mousedown', startDraw);
+        document.addEventListener('mousemove', draw); // 移出 Canvas 也能画一点
+        document.addEventListener('mouseup', stopDraw);
 
-        // iOS Safari passive: false 是必须的，否则无法 preventDefault
-        canvas.addEventListener('touchstart', startDraw, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDraw);
-        canvas.addEventListener('touchcancel', stopDraw);
+        // iOS 深度适配监听
+        // passive: false 允许 preventDefault
+        canvasEl.addEventListener('touchstart', startDraw, { passive: false });
+        canvasEl.addEventListener('touchmove', draw, { passive: false });
+        canvasEl.addEventListener('touchend', stopDraw);
+        canvasEl.addEventListener('touchcancel', stopDraw);
 
     </script>
 </body>
