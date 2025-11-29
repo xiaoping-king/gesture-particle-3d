@@ -257,20 +257,32 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.92);
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* 默认竖屏逻辑 */
             justify-content: center;
             align-items: center;
             z-index: 100;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.8s;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         #grand-prize-overlay.show {
             opacity: 1;
             pointer-events: auto;
+        }
+        
+        /* 大奖内容容器：用于控制布局 */
+        .grand-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
         }
 
         .grand-jar {
@@ -279,16 +291,37 @@
             filter: drop-shadow(0 0 50px rgba(255, 193, 7, 0.6));
             animation: grandAppear 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             transform: scale(0);
+            margin-bottom: 20px;
+        }
+        
+        .grand-text-group {
+            text-align: center;
+            animation: fadeUp 0.8s ease-out 0.5s both;
+        }
+        
+        .grand-title {
+            color: #FFD54F; 
+            font-size: 2.5rem; 
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px rgba(255, 213, 79, 0.5);
+        }
+        
+        .grand-desc {
+            font-size: 1.1rem; 
+            opacity: 0.9;
+            margin: 0;
+            color: #e0e0e0;
         }
 
         @keyframes breathe { 0%, 100% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 0.8; transform: scale(1.1); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes grandAppear { 0% { transform: scale(0) rotate(-30deg); } 100% { transform: scale(1) rotate(0deg); } }
+        @keyframes fadeUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
 
         .btn-cta {
-            margin-top: 30px;
-            padding: 15px 40px;
-            font-size: 1.2rem;
+            margin-top: 25px;
+            padding: 12px 35px;
+            font-size: 1.1rem;
             background: linear-gradient(45deg, #FFC107, #FF9800);
             border: none;
             border-radius: 30px;
@@ -297,9 +330,62 @@
             cursor: pointer;
             box-shadow: 0 10px 20px rgba(255, 160, 0, 0.4);
             animation: pulse 2s infinite;
+            -webkit-tap-highlight-color: transparent;
         }
+        
+        .btn-cta:active { transform: scale(0.95); }
 
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 160, 0, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255, 160, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 160, 0, 0); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 160, 0, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 160, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 160, 0, 0); } }
+        
+        /* 针对横屏的特别优化 */
+        @media (orientation: landscape) {
+            /* 改为左右布局 */
+            .grand-content {
+                flex-direction: row;
+                justify-content: center;
+                gap: 40px;
+            }
+            
+            .grand-jar {
+                width: 220px;
+                height: 220px;
+                margin-bottom: 0;
+                order: 1; /* 放在左边 */
+            }
+            
+            .grand-text-group {
+                order: 2; /* 放在右边 */
+                text-align: left;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: center;
+            }
+            
+            .grand-title {
+                font-size: 3rem;
+                margin-bottom: 15px;
+            }
+            
+            .grand-desc {
+                font-size: 1.2rem;
+                margin-bottom: 10px;
+            }
+            
+            .btn-cta {
+                margin-top: 20px;
+                align-self: flex-start; /* 按钮左对齐 */
+            }
+            
+            /* 针对小高度横屏（手机） */
+            @media (max-height: 450px) {
+                .grand-jar { width: 160px; height: 160px; }
+                .grand-title { font-size: 2rem; }
+                .grand-desc { font-size: 1rem; }
+                .btn-cta { padding: 10px 25px; font-size: 1rem; margin-top: 15px; }
+                .grand-content { gap: 20px; }
+            }
+        }
         
         .back-btn {
             position: absolute;
@@ -394,68 +480,71 @@
 
     <!-- 最终大奖层 -->
     <div id="grand-prize-overlay">
-        <h1 style="color: #FFD54F; font-size: 3rem;">✨ 命中注定 ✨</h1>
-        
-        <!-- 这是一个高度定制的 SVG，模拟高级质感 -->
-        <svg class="grand-jar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <!-- 瓶身蜂蜜渐变 -->
-                <radialGradient id="honeyBody" cx="40%" cy="40%" r="60%" fx="30%" fy="30%">
-                    <stop offset="0%" style="stop-color:#FFECB3; stop-opacity:0.95" />
-                    <stop offset="50%" style="stop-color:#FFC107; stop-opacity:0.9" />
-                    <stop offset="100%" style="stop-color:#FF6F00; stop-opacity:1" />
-                </radialGradient>
-                <!-- 盖子流体渐变 -->
-                <linearGradient id="lidGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#9C27B0;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#4A148C;stop-opacity:1" />
-                </linearGradient>
-                <!-- 高光滤镜 -->
-                <filter id="glowFilter">
-                    <feGaussianBlur stdDeviation="2" result="blur" />
-                    <feSpecularLighting in="blur" surfaceScale="5" specularConstant=".75" specularExponent="20" lighting-color="#ffffff" result="specOut">
-                        <fePointLight x="-5000" y="-10000" z="20000" />
-                    </feSpecularLighting>
-                    <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut" />
-                    <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litPaint" />
-                </filter>
-                 <filter id="shadowFilter">
-                    <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
-                </filter>
-            </defs>
-
-            <!-- 底部阴影 -->
-            <ellipse cx="100" cy="170" rx="70" ry="15" fill="rgba(0,0,0,0.3)" filter="url(#blur)" />
-
-            <!-- 瓶身主体 -->
-            <path d="M40,90 Q35,150 100,160 Q165,150 160,90 L155,80 L45,80 Z" fill="url(#honeyBody)" filter="url(#glowFilter)" />
-            
-            <!-- 瓶内高光反光，模拟玻璃感 -->
-            <path d="M55,95 Q50,140 90,145" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" />
-            <circle cx="140" cy="110" r="3" fill="rgba(255,255,255,0.6)" />
-
-            <!-- 溢出的果酱盖子 -->
-            <!-- 复杂的波浪形底部，模拟流下来的果酱 -->
-            <path d="M35,85 
-                     C35,60 60,40 100,40 
-                     C140,40 165,60 165,85
-                     L165,90 
-                     Q150,100 135,90 
-                     Q120,80 100,95 
-                     Q80,110 65,90 
-                     Q50,80 35,90 Z" 
-                  fill="url(#lidGradient)" filter="url(#shadowFilter)" />
-
-            <!-- 盖子上的高光 -->
-            <ellipse cx="70" cy="60" rx="20" ry="8" fill="rgba(255,255,255,0.2)" transform="rotate(-20 70 60)" />
-
-            <!-- LOGO -->
-            <text x="100" y="130" font-family="Arial" font-weight="bold" font-size="18" text-anchor="middle" fill="#4A148C" letter-spacing="1">FRUDIA</text>
-            <text x="100" y="145" font-family="Arial" font-size="8" text-anchor="middle" fill="#E65100">BLUEBERRY & HONEY</text>
-        </svg>
-
-        <p style="font-size: 1.2rem; margin-top: 20px; opacity: 0.8;">蓝莓与蜂蜜的完美邂逅</p>
-        <button class="btn-cta" onclick="location.reload()">再抽一次</button>
+        <div class="grand-content">
+            <!-- 这是一个高度定制的 SVG，模拟高级质感 -->
+            <svg class="grand-jar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <!-- 瓶身蜂蜜渐变 -->
+                    <radialGradient id="honeyBody" cx="40%" cy="40%" r="60%" fx="30%" fy="30%">
+                        <stop offset="0%" style="stop-color:#FFECB3; stop-opacity:0.95" />
+                        <stop offset="50%" style="stop-color:#FFC107; stop-opacity:0.9" />
+                        <stop offset="100%" style="stop-color:#FF6F00; stop-opacity:1" />
+                    </radialGradient>
+                    <!-- 盖子流体渐变 -->
+                    <linearGradient id="lidGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#9C27B0;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#4A148C;stop-opacity:1" />
+                    </linearGradient>
+                    <!-- 高光滤镜 -->
+                    <filter id="glowFilter">
+                        <feGaussianBlur stdDeviation="2" result="blur" />
+                        <feSpecularLighting in="blur" surfaceScale="5" specularConstant=".75" specularExponent="20" lighting-color="#ffffff" result="specOut">
+                            <fePointLight x="-5000" y="-10000" z="20000" />
+                        </feSpecularLighting>
+                        <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut" />
+                        <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litPaint" />
+                    </filter>
+                     <filter id="shadowFilter">
+                        <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity="0.3"/>
+                    </filter>
+                </defs>
+    
+                <!-- 底部阴影 -->
+                <ellipse cx="100" cy="170" rx="70" ry="15" fill="rgba(0,0,0,0.3)" filter="url(#blur)" />
+    
+                <!-- 瓶身主体 -->
+                <path d="M40,90 Q35,150 100,160 Q165,150 160,90 L155,80 L45,80 Z" fill="url(#honeyBody)" filter="url(#glowFilter)" />
+                
+                <!-- 瓶内高光反光，模拟玻璃感 -->
+                <path d="M55,95 Q50,140 90,145" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" />
+                <circle cx="140" cy="110" r="3" fill="rgba(255,255,255,0.6)" />
+    
+                <!-- 溢出的果酱盖子 -->
+                <!-- 复杂的波浪形底部，模拟流下来的果酱 -->
+                <path d="M35,85 
+                         C35,60 60,40 100,40 
+                         C140,40 165,60 165,85
+                         L165,90 
+                         Q150,100 135,90 
+                         Q120,80 100,95 
+                         Q80,110 65,90 
+                         Q50,80 35,90 Z" 
+                      fill="url(#lidGradient)" filter="url(#shadowFilter)" />
+    
+                <!-- 盖子上的高光 -->
+                <ellipse cx="70" cy="60" rx="20" ry="8" fill="rgba(255,255,255,0.2)" transform="rotate(-20 70 60)" />
+    
+                <!-- LOGO -->
+                <text x="100" y="130" font-family="Arial" font-weight="bold" font-size="18" text-anchor="middle" fill="#4A148C" letter-spacing="1">FRUDIA</text>
+                <text x="100" y="145" font-family="Arial" font-size="8" text-anchor="middle" fill="#E65100">BLUEBERRY & HONEY</text>
+            </svg>
+    
+            <div class="grand-text-group">
+                <h1 class="grand-title">✨ 命中注定 ✨</h1>
+                <p class="grand-desc">蓝莓与蜂蜜的完美邂逅</p>
+                <button class="btn-cta" onclick="location.reload()">再抽一次</button>
+            </div>
+        </div>
     </div>
 
     <script>
